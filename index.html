@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turing Machine Lab</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230b1220'/%3E%3Crect x='14' y='38' width='72' height='24' rx='5' fill='none' stroke='%2338bdf8' stroke-width='6'/%3E%3Cpath d='M50 12 L64 34 L36 34 Z' fill='%23facc15'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b1220;--bg2:#101a2e;--panel:#131f36;--panel2:#0e1830;--line:#243352;--txt:#e6edf7;--mut:#8ea0bd;
+    --acc:#38bdf8;--acc2:#818cf8;--hl:#facc15;--ok:#34d399;--bad:#f87171;--warn:#fbbf24;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:radial-gradient(1200px 600px at 15% -10%,#17284a 0%,transparent 60%),radial-gradient(900px 500px at 100% 0%,#231a4a 0%,transparent 55%),var(--bg);
+    color:var(--txt);font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;min-height:100vh;padding:20px 14px 50px;
+  }
+  .wrap{max-width:1120px;margin:0 auto}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+  h1{margin:0;font-size:1.85rem;letter-spacing:-.02em;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--mut);margin-top:4px;font-size:.95rem}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .panel h2{margin:0 0 10px;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);font-weight:700}
+  .grid{display:grid;gap:14px;margin-top:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  @media(max-width:860px){.g2{grid-template-columns:1fr}}
+  label.f{display:flex;flex-direction:column;gap:5px;font-size:.78rem;color:var(--mut);font-weight:600}
+  select,input[type=text],textarea{background:var(--bg);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;outline:none}
+  select:focus,input[type=text]:focus,textarea:focus{border-color:var(--acc)}
+  input[type=text]{font-family:var(--mono);min-width:200px;letter-spacing:.06em}
+  textarea{font-family:var(--mono);font-size:.88rem;width:100%;min-height:210px;resize:vertical;line-height:1.5}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  button{border:0;border-radius:10px;padding:10px 16px;font-weight:700;font-size:.92rem;cursor:pointer;color:#06222f;background:linear-gradient(180deg,#5ccbf9,#2aa9e0);transition:transform .08s,filter .15s}
+  button:hover:not(:disabled){filter:brightness(1.1)}
+  button:active:not(:disabled){transform:translateY(1px)}
+  button.sec{background:#1d2c4a;color:var(--txt);border:1px solid var(--line)}
+  button.go{background:linear-gradient(180deg,#4ade9b,#22b878);color:#052a1a}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  input[type=range]{accent-color:var(--acc);width:150px}
+  .desc{color:var(--mut);font-size:.92rem;line-height:1.5;margin-top:10px}
+  .err{color:var(--bad);font-size:.88rem;margin-top:8px;white-space:pre-line;min-height:1px}
+
+  /* tape */
+  .tapebox{position:relative;height:132px;overflow:hidden;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%)}
+  .cell{position:absolute;left:calc(50% - 24px);top:50px;width:48px;transition:transform .3s cubic-bezier(.4,.1,.2,1)}
+  .sym{height:52px;line-height:50px;text-align:center;border:2px solid var(--line);border-radius:10px;background:var(--bg);font:700 1.5rem var(--mono);color:var(--txt)}
+  .sym.blank{color:#34456a;font-weight:500}
+  .idx{text-align:center;font:.68rem var(--mono);color:#53648a;margin-top:5px}
+  .cell.wrote .sym{animation:wr .55s ease-out}
+  @keyframes wr{0%{background:#fde68a;color:#000;transform:scale(1.18)}100%{background:var(--bg);transform:scale(1)}}
+  .headframe{position:absolute;left:calc(50% - 31px);top:44px;width:62px;height:64px;border:3px solid var(--hl);border-radius:14px;box-shadow:0 0 22px rgba(250,204,21,.5),inset 0 0 14px rgba(250,204,21,.15);pointer-events:none;z-index:2}
+  .badge{position:absolute;left:50%;top:6px;transform:translateX(-50%);background:var(--hl);color:#241c00;font:800 .82rem var(--mono);padding:4px 11px;border-radius:999px;z-index:3;white-space:nowrap;box-shadow:0 4px 14px rgba(250,204,21,.35)}
+  .badge::after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--hl);border-bottom:0}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:6px}
+  .stat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .stat b{display:block;font-size:.68rem;letter-spacing:.1em;color:var(--mut);margin-bottom:3px}
+  .stat span{font:700 1.15rem var(--mono)}
+  .tapeline{margin-top:10px;font:.9rem var(--mono);color:var(--mut);overflow-x:auto;white-space:nowrap}
+  .tapeline b{color:var(--txt);letter-spacing:.12em}
+  #rule{margin-top:12px;padding:11px 13px;border-radius:12px;background:var(--bg);border:1px dashed #36507d;font:.93rem var(--mono);line-height:1.5}
+  #rule em{color:var(--hl);font-style:normal;font-weight:700}
+
+  /* banner */
+  .banner{display:none;margin-top:14px;border-radius:14px;padding:14px 16px;border:1px solid;animation:pop .35s ease-out}
+  .banner.show{display:block}
+  .banner .t{font-weight:800;font-size:1.05rem}
+  .banner .d{margin-top:4px;font-size:.93rem;opacity:.95;line-height:1.45}
+  .banner.ok{background:rgba(52,211,153,.12);border-color:var(--ok);color:#a7f3d0}
+  .banner.bad{background:rgba(248,113,113,.12);border-color:var(--bad);color:#fecaca}
+  .banner.info{background:rgba(56,189,248,.12);border-color:var(--acc);color:#bae6fd}
+  .banner.warn{background:rgba(251,191,36,.12);border-color:var(--warn);color:#fde68a}
+  @keyframes pop{from{transform:scale(.97);opacity:0}to{transform:none;opacity:1}}
+
+  /* table */
+  .tblwrap{overflow-x:auto}
+  table{border-collapse:separate;border-spacing:0;width:100%;font:.86rem var(--mono)}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:center;white-space:nowrap}
+  th{background:var(--bg);color:var(--mut)}
+  td{color:var(--txt)}
+  td.none{color:#3b4c70}
+  tr.cur th:first-child{color:var(--hl);background:#2a2406}
+  td.rowhl{background:rgba(250,204,21,.07)}
+  td.on{background:rgba(250,204,21,.35);outline:2px solid var(--hl);outline-offset:-2px;font-weight:800}
+
+  /* diagram */
+  svg#diagram{width:100%;height:auto;display:block;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+  .node circle.o{fill:#12203d;stroke:#4a6190;stroke-width:2;transition:all .2s}
+  .node circle.i{fill:none;stroke:#4a6190;stroke-width:1.5}
+  .node text{fill:var(--txt);font:700 12px var(--mono);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+  .node.cur circle.o{fill:#3a3108;stroke:var(--hl);stroke-width:3.5;filter:drop-shadow(0 0 8px rgba(250,204,21,.7))}
+  .node.acc circle.o,.node.acc circle.i{stroke:var(--ok)}
+  .node.rej circle.o,.node.rej circle.i{stroke:var(--bad)}
+  .edge path{fill:none;stroke:#4f6590;stroke-width:1.6;transition:stroke .2s}
+  .edge text{fill:#a9b8d4;font:600 11px var(--mono);text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+  .edge tspan.on{fill:var(--hl);font-weight:800}
+  .edge.on path{stroke:var(--hl);stroke-width:3}
+  .arrow{fill:#4f6590}.arrow.on{fill:var(--hl)}
+  .startarrow{stroke:var(--acc);stroke-width:2;fill:none}
+  .starttxt{fill:var(--acc);font:700 10px var(--mono);text-anchor:middle}
+
+  /* log */
+  #log{height:238px;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:6px 0;font:.82rem var(--mono)}
+  #log div{padding:3px 12px;color:#9fb0cc;border-left:3px solid transparent}
+  #log div:last-child{background:rgba(250,204,21,.08);border-left-color:var(--hl);color:var(--txt)}
+  #log .n{color:#5a6c92;display:inline-block;min-width:3.2em}
+  .empty{color:#53648a;padding:10px 12px}
+  .help{font-size:.82rem;color:var(--mut);line-height:1.55;margin-top:8px}
+  .help code{background:var(--bg);padding:1px 6px;border-radius:6px;color:#bcd0f2;font-family:var(--mono)}
+  kbd{background:#1d2c4a;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font:.78rem var(--mono);color:var(--txt)}
+  .legend{color:var(--mut);font-size:.82rem;margin-top:8px}
+  @media(prefers-reduced-motion:reduce){.cell{transition:none}.banner,.cell.wrote .sym{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Turing Machine Lab</h1>
+      <div class="tag">A live simulator: pick a machine, type your own input, step through it, or write your own rules.</div>
+    </div>
+    <div class="btns">
+      <button class="sec" id="share" title="Copy a link that restores this machine and input">Copy share link</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="controls">
+      <label class="f">Machine
+        <select id="machine"></select>
+      </label>
+      <label class="f">Your input (tape string, <code style="font-family:var(--mono)">_</code> = blank)
+        <input type="text" id="input" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </label>
+      <label class="f">Speed
+        <input type="range" id="speed" min="1" max="10" value="5">
+      </label>
+      <div class="btns">
+        <button class="sec" id="load">Load input</button>
+      </div>
+    </div>
+    <div class="desc" id="desc"></div>
+    <div class="err" id="err"></div>
+    <div class="btns" style="margin-top:12px">
+      <button class="sec" id="back">&#9664; Back</button>
+      <button id="step">Step &#9654;</button>
+      <button class="go" id="run">&#9654;&#9654; Run</button>
+      <button class="sec" id="reset">&#8635; Reset</button>
+    </div>
+    <div class="legend">Shortcuts: <kbd>Space</kbd> run / pause &nbsp; <kbd>&rarr;</kbd> step &nbsp; <kbd>&larr;</kbd> step back &nbsp; <kbd>R</kbd> reset</div>
+  </section>
+
+  <section class="panel" style="margin-top:14px">
+    <h2>Tape &amp; head</h2>
+    <div class="tapebox" id="tapebox">
+      <div class="badge" id="badge">q0</div>
+      <div class="headframe"></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>CURRENT STATE</b><span id="st">-</span></div>
+      <div class="stat"><b>SYMBOL UNDER HEAD</b><span id="sy">-</span></div>
+      <div class="stat"><b>STEPS</b><span id="cnt">0</span></div>
+      <div class="stat"><b>HEAD POSITION</b><span id="pos">0</span></div>
+    </div>
+    <div class="tapeline">Tape contents: <b id="tapeline"></b></div>
+    <div id="rule"></div>
+  </section>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="grid g2">
+    <section class="panel">
+      <h2>State diagram</h2>
+      <svg id="diagram" viewBox="0 0 640 400" role="img" aria-label="State diagram"></svg>
+      <div class="legend">Yellow node = current state. Double circle = halting state. Edge labels: <code style="font-family:var(--mono)">read&rarr;write,move</code>. The edge of the rule that runs next is highlighted.</div>
+    </section>
+    <section class="panel">
+      <h2>Transition table</h2>
+      <div class="tblwrap"><table id="table"></table></div>
+      <div class="legend">Each cell = <code style="font-family:var(--mono)">write , move , next state</code>. Rows are states, columns are the symbol under the head.</div>
+    </section>
+  </div>
+
+  <div class="grid g2">
+    <section class="panel">
+      <h2>Rules (editable - write your own machine!)</h2>
+      <textarea id="rules" spellcheck="false" autocapitalize="off"></textarea>
+      <div class="btns" style="margin-top:10px"><button class="sec" id="apply">Apply rules &amp; reset</button></div>
+      <div class="help">
+        One rule per line: <code>state read write move next</code>. Move is <code>L</code>, <code>R</code> or <code>N</code> (stay).
+        <code>_</code> is the blank symbol, <code>*</code> matches any symbol (as <i>write</i> it keeps the symbol).
+        The first rule's state is the start state (or add a line <code>start: q0</code>).
+        States named <code>halt</code>, <code>accept</code>, <code>reject</code> (or with no outgoing rules) stop the machine. Comments start with <code>#</code>.
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Execution log</h2>
+      <div id="log"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+/*ENGINE*/
+const BLANK = "_";
+const PRESETS = {
+  flip: {
+    name: "Bit flipper (NOT)",
+    input: "101100",
+    desc: "The simplest machine: walks right and flips every bit (0 becomes 1, 1 becomes 0). It halts on the first blank.",
+    rules: "# flip every bit\nq0 0 1 R q0\nq0 1 0 R q0\nq0 _ _ N halt\n",
+    note: (o, i) => i + " flipped is " + o
+  },
+  inc: {
+    name: "Binary incrementer (+1)",
+    input: "1011",
+    desc: "Adds 1 to a binary number. It runs to the right end, then walks left turning every 1 into 0 (the carry) until it meets a 0 or a blank and writes 1.",
+    rules: "# phase 1: go to the right end\nq0 0 0 R q0\nq0 1 1 R q0\nq0 _ _ L q1\n# phase 2: propagate the carry leftwards\nq1 1 0 L q1\nq1 0 1 N halt\nq1 _ 1 N halt\n",
+    note: (o, i) => { const a = parseInt(i || "0", 2), b = parseInt(o || "0", 2); return isNaN(a) || isNaN(b) ? "" : i + " (" + a + ") + 1 = " + o + " (" + b + ")"; }
+  },
+  pal: {
+    name: "Palindrome checker",
+    input: "10101",
+    desc: "Decides whether a binary string reads the same forwards and backwards. It erases the first symbol, runs to the end, checks that the last symbol matches and erases it, then repeats. Ends in accept or reject.",
+    rules: "# erase first symbol, remember it in the state\nq0 0 _ R q1\nq0 1 _ R q4\nq0 _ _ N accept\n# remembered 0: go to the end\nq1 0 0 R q1\nq1 1 1 R q1\nq1 _ _ L q2\nq2 0 _ L q3\nq2 1 1 N reject\nq2 _ _ N accept\n# return to the start\nq3 0 0 L q3\nq3 1 1 L q3\nq3 _ _ R q0\n# remembered 1: go to the end\nq4 0 0 R q4\nq4 1 1 R q4\nq4 _ _ L q5\nq5 1 _ L q3\nq5 0 0 N reject\nq5 _ _ N accept\n",
+    note: () => ""
+  },
+  add: {
+    name: "Unary adder (111+11)",
+    input: "111+11",
+    desc: "Adds two numbers written in unary (n = n ones). It replaces the + with a 1 to glue the blocks together, then erases the final 1.",
+    rules: "q0 1 1 R q0\nq0 + 1 R q1\nq1 1 1 R q1\nq1 _ _ L q2\nq2 1 _ N halt\n",
+    note: (o, i) => { const c = s => (s.match(/1/g) || []).length; const p = i.split("+"); return p.length === 2 ? c(p[0]) + " + " + c(p[1]) + " = " + c(o) : ""; }
+  },
+  bb: {
+    name: "Busy Beaver (3 states)",
+    input: "",
+    desc: "A famous champion machine. It starts on a completely blank tape and writes as many 1s as possible with only 3 states before halting. No input needed.",
+    rules: "# 3-state busy beaver (starts on a blank tape)\nA _ 1 R B\nA 1 1 R halt\nB _ _ R C\nB 1 1 R B\nC _ 1 L C\nC 1 1 L A\n",
+    note: (o) => ((o.match(/1/g) || []).length) + " ones written on the tape"
+  }
+};
+
+function parseMachine(text) {
+  const rules = new Map(), states = [], errors = [], syms = new Set();
+  let start = null, first = null;
+  text.split(/\r?\n/).forEach((raw, idx) => {
+    const line = raw.replace(/(#|\/\/).*$/, "").trim();
+    if (!line) return;
+    const sm = line.match(/^start\s*[:=]\s*(\S+)$/i);
+    if (sm) { start = sm[1]; return; }
+    const t = line.split(/[\s,]+/).filter(Boolean);
+    if (t.length !== 5) { errors.push("Line " + (idx + 1) + ": need 5 items (state read write move next), found " + t.length); return; }
+    const s = t[0], r = t[1], w = t[2], n = t[4];
+    let mv = t[3].toUpperCase();
+    if (mv === "S" || mv === "-") mv = "N";
+    if (!["L", "R", "N"].includes(mv)) { errors.push("Line " + (idx + 1) + ": move must be L, R or N, got \"" + t[3] + "\""); return; }
+    if ([...r].length !== 1 || [...w].length !== 1) { errors.push("Line " + (idx + 1) + ": read/write must be single characters (_ = blank, * = any)"); return; }
+    const key = s + "\u0000" + r;
+    if (rules.has(key)) { errors.push("Line " + (idx + 1) + ": duplicate rule for (" + s + ", " + r + ")"); return; }
+    rules.set(key, { from: s, read: r, write: w, move: mv, to: n, line: idx + 1 });
+    if (first === null) first = s;
+    [s, n].forEach(x => { if (!states.includes(x)) states.push(x); });
+    [r, w].forEach(c => { if (c !== "*" && c !== BLANK) syms.add(c); });
+  });
+  if (!rules.size && !errors.length) errors.push("No rules found.");
+  if (start === null) start = first;
+  if (start !== null && !states.includes(start) && !errors.length) errors.push("Start state \"" + start + "\" is not used by any rule.");
+  if (errors.length) return { ok: false, errors };
+  const hasOut = new Set([...rules.values()].map(r => r.from));
+  const halting = new Set(states.filter(s => /^(halt|accept|reject|stop)/i.test(s) || !hasOut.has(s)));
+  const wildcard = [...rules.values()].some(r => r.read === "*");
+  return { ok: true, machine: { rules, states, start, halting, alphabet: [...syms].sort(), wildcard } };
+}
+function lookup(rules, state, sym) {
+  return rules.get(state + "\u0000" + sym) || rules.get(state + "\u0000*") || null;
+}
+function makeSim(machine, input) {
+  const tape = new Map();
+  [...input].forEach((c, i) => { if (c !== BLANK) tape.set(i, c); });
+  return { tape, head: 0, state: machine.start, steps: 0, history: [] };
+}
+function readSym(sim) { return sim.tape.get(sim.head) ?? BLANK; }
+function pendingRule(machine, sim) { return lookup(machine.rules, sim.state, readSym(sim)); }
+function evalStatus(machine, sim) {
+  if (machine.halting.has(sim.state)) return "halted";
+  return pendingRule(machine, sim) ? "running" : "stuck";
+}
+function stepSim(machine, sim) {
+  if (evalStatus(machine, sim) !== "running") return null;
+  const sym = readSym(sim), r = pendingRule(machine, sim);
+  const w = r.write === "*" ? sym : r.write;
+  sim.history.push({ head: sim.head, state: sim.state, sym });
+  if (w === BLANK) sim.tape.delete(sim.head); else sim.tape.set(sim.head, w);
+  if (r.move === "R") sim.head++; else if (r.move === "L") sim.head--;
+  sim.state = r.to; sim.steps++;
+  return { rule: r, sym, w };
+}
+function undoSim(sim) {
+  const rec = sim.history.pop();
+  if (!rec) return false;
+  if (rec.sym === BLANK) sim.tape.delete(rec.head); else sim.tape.set(rec.head, rec.sym);
+  sim.head = rec.head; sim.state = rec.state; sim.steps--;
+  return true;
+}
+function tapeString(sim) {
+  const ks = [...sim.tape.keys()].sort((a, b) => a - b);
+  if (!ks.length) return "";
+  let s = "";
+  for (let i = ks[0]; i <= ks[ks.length - 1]; i++) s += sim.tape.get(i) ?? BLANK;
+  return s;
+}
+/*END-ENGINE*/
+
+/* ---------------- UI ---------------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const PITCH = 52, LIMIT = 20000, WIN = 14, NS = "http://www.w3.org/2000/svg";
+let machine = null, sim = null, initialInput = "", runFlag = false, tid = null, limitHit = false, builtFor = null;
+const cells = new Map();
+let nodeEls = new Map(), edgeEls = new Map(), tdEls = new Map(), rowEls = new Map();
+
+function svgEl(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const moveText = m => m === "L" ? "left" : m === "R" ? "right" : "stay";
+const moveArrow = m => m === "L" ? "←" : m === "R" ? "→" : "•";
+
+/* ----- tape ----- */
+function resetTapeDom() {
+  cells.forEach(el => el.remove()); cells.clear();
+}
+function renderTape(flashHead) {
+  for (let i = sim.head - WIN; i <= sim.head + WIN; i++) {
+    let el = cells.get(i);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "cell";
+      el.innerHTML = '<div class="sym"></div><div class="idx"></div>';
+      $("tapebox").appendChild(el);
+      cells.set(i, el);
+    }
+    const v = sim.tape.get(i) ?? BLANK;
+    const s = el.firstChild;
+    s.textContent = v === BLANK ? "␣" : v;
+    s.classList.toggle("blank", v === BLANK);
+    el.lastChild.textContent = i;
+    el.style.transform = "translateX(" + ((i - sim.head) * PITCH) + "px)";
+  }
+  cells.forEach((el, i) => { if (Math.abs(i - sim.head) > WIN + 3) { el.remove(); cells.delete(i); } });
+  if (flashHead !== undefined && cells.get(flashHead)) {
+    const el = cells.get(flashHead);
+    el.classList.remove("wrote"); void el.offsetWidth; el.classList.add("wrote");
+  }
+}
+
+/* ----- table ----- */
+function buildTable() {
+  const cols = [...machine.alphabet, BLANK];
+  if (machine.wildcard) cols.push("*");
+  tdEls = new Map(); rowEls = new Map();
+  const t = $("table"); t.innerHTML = "";
+  const hr = document.createElement("tr");
+  hr.innerHTML = "<th>state</th>" + cols.map(c => "<th>" + esc(c) + "</th>").join("");
+  t.appendChild(hr);
+  machine.states.forEach(st => {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th"); th.textContent = st; tr.appendChild(th);
+    if (machine.halting.has(st)) {
+      const td = document.createElement("td"); td.colSpan = cols.length; td.textContent = "HALT"; td.className = "none"; tr.appendChild(td);
+    } else {
+      cols.forEach(c => {
+        const r = machine.rules.get(st + "\u0000" + c);
+        const td = document.createElement("td");
+        if (r) { td.textContent = r.write + " , " + r.move + " , " + r.to; tdEls.set(st + "|" + c, td); }
+        else { td.textContent = "-"; td.className = "none"; }
+        tr.appendChild(td);
+      });
+    }
+    rowEls.set(st, tr); t.appendChild(tr);
+  });
+}
+
+/* ----- diagram ----- */
+function buildDiagram() {
+  const svg = $("diagram"); svg.innerHTML = "";
+  nodeEls = new Map(); edgeEls = new Map();
+  const W = 640, H = 400, cx = W / 2, cy = H / 2, R = 26;
+  const defs = svgEl("defs", {}, svg);
+  [["m", "arrow"], ["ma", "arrow on"]].forEach(([id, cls]) => {
+    const mk = svgEl("marker", { id, viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto" }, defs);
+    svgEl("path", { d: "M0,0 L10,5 L0,10 z", class: cls }, mk);
+  });
+  const n = machine.states.length, pos = new Map();
+  machine.states.forEach((s, i) => {
+    if (n === 1) pos.set(s, { x: cx, y: cy, th: -Math.PI / 2 });
+    else {
+      const th = -Math.PI / 2 + i * 2 * Math.PI / n;
+      pos.set(s, { x: cx + 225 * Math.cos(th), y: cy + 108 * Math.sin(th), th: Math.atan2(108 * Math.sin(th), 225 * Math.cos(th)) });
+    }
+  });
+  const groups = new Map();
+  machine.rules.forEach(r => {
+    const k = r.from + "|" + r.to;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+  const edgeLayer = svgEl("g", {}, svg), nodeLayer = svgEl("g", {}, svg);
+  groups.forEach((list, k) => {
+    const from = list[0].from, to = list[0].to, A = pos.get(from), B = pos.get(to);
+    const g = svgEl("g", { class: "edge" }, edgeLayer);
+    let path, lx, ly;
+    if (from === to) {
+      const o = { x: Math.cos(A.th), y: Math.sin(A.th) }, t = { x: -o.y, y: o.x };
+      const P = (a, b) => (A.x + o.x * a + t.x * b).toFixed(1) + " " + (A.y + o.y * a + t.y * b).toFixed(1);
+      path = svgEl("path", { d: "M" + P(R - 2, -11) + " C" + P(R + 48, -32) + " " + P(R + 48, 32) + " " + P(R - 2, 11), "marker-end": "url(#m)" }, g);
+      lx = A.x + o.x * (R + 50); ly = A.y + o.y * (R + 50);
+    } else {
+      const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy), p = { x: -dy / len, y: dx / len };
+      const hasRev = groups.has(to + "|" + from), off = hasRev ? 36 : 0;
+      const C = { x: (A.x + B.x) / 2 + p.x * off * 2, y: (A.y + B.y) / 2 + p.y * off * 2 };
+      const nrm = (P, Q) => { const l = Math.hypot(Q.x - P.x, Q.y - P.y) || 1; return { x: (Q.x - P.x) / l, y: (Q.y - P.y) / l }; };
+      const dA = nrm(A, C), dB = nrm(B, C);
+      const s = { x: A.x + dA.x * R, y: A.y + dA.y * R }, e = { x: B.x + dB.x * (R + 3), y: B.y + dB.y * (R + 3) };
+      path = svgEl("path", { d: "M" + s.x.toFixed(1) + " " + s.y.toFixed(1) + " Q" + C.x.toFixed(1) + " " + C.y.toFixed(1) + " " + e.x.toFixed(1) + " " + e.y.toFixed(1), "marker-end": "url(#m)" }, g);
+      lx = 0.25 * s.x + 0.5 * C.x + 0.25 * e.x + p.x * 13;
+      ly = 0.25 * s.y + 0.5 * C.y + 0.25 * e.y + p.y * 13;
+    }
+    const txt = svgEl("text", {}, g), tsp = new Map();
+    const y0 = ly - (list.length - 1) * 6.5 + 4;
+    list.forEach((r, i) => {
+      const ts = svgEl("tspan", { x: lx.toFixed(1), y: (y0 + i * 13).toFixed(1) }, txt);
+      ts.textContent = r.read + "→" + (r.write === "*" ? "*" : r.write) + "," + r.move;
+      tsp.set(r.from + "|" + r.read, ts);
+    });
+    edgeEls.set(k, { g, path, tsp });
+  });
+  machine.states.forEach(s => {
+    const P = pos.get(s);
+    const cls = "node" + (/^accept/i.test(s) ? " acc" : /^reject/i.test(s) ? " rej" : "");
+    const g = svgEl("g", { class: cls }, nodeLayer);
+    svgEl("circle", { class: "o", cx: P.x, cy: P.y, r: R }, g);
+    if (machine.halting.has(s)) svgEl("circle", { class: "i", cx: P.x, cy: P.y, r: R - 5 }, g);
+    const t = svgEl("text", { x: P.x, y: P.y }, g); t.textContent = s;
+    nodeEls.set(s, g);
+  });
+  const S = pos.get(machine.start);
+  const sx = S.x - R - 38;
+  svgEl("line", { class: "startarrow", x1: sx, y1: S.y, x2: S.x - R - 3, y2: S.y, "marker-end": "url(#ma)" }, svg);
+  const st = svgEl("text", { class: "starttxt", x: sx + 4, y: S.y - 8 }, svg); st.textContent = "START";
+}
+
+/* ----- refresh ----- */
+function setBanner() {
+  const b = $("banner"), s = evalStatus(machine, sim);
+  let cls = null, title = "", detail = "";
+  const out = tapeString(sim);
+  if (limitHit) {
+    cls = "warn"; title = "Step limit reached (" + LIMIT + ")";
+    detail = "The machine is still running - it may loop forever. Use Back or Reset to explore.";
+  } else if (s === "halted") {
+    const nm = sim.state, preset = PRESETS[$("machine").value];
+    cls = /^accept/i.test(nm) ? "ok" : /^reject/i.test(nm) ? "bad" : "info";
+    title = "HALTED in state \"" + nm + "\" after " + sim.steps + " step" + (sim.steps === 1 ? "" : "s");
+    if (/^accept/i.test(nm)) title += " - input ACCEPTED";
+    if (/^reject/i.test(nm)) title += " - input REJECTED";
+    detail = "Final tape: " + (out === "" ? "(empty)" : out);
+    const note = preset ? preset.note(out, initialInput) : "";
+    if (note) detail += "<br>" + esc(note);
+  } else if (s === "stuck") {
+    cls = "warn"; title = "HALTED: no rule for (" + sim.state + ", " + readSym(sim) + ") after " + sim.steps + " steps";
+    detail = "A real Turing machine stops when no transition is defined. Final tape: " + (out === "" ? "(empty)" : out);
+  }
+  if (!cls) { b.className = "banner"; b.innerHTML = ""; return; }
+  b.className = "banner show " + cls;
+  b.innerHTML = '<div class="t">' + esc(title) + '</div><div class="d">' + (cls === "ok" || cls === "bad" || cls === "info" ? detail.replace(/^(Final tape: )(.*?)(<br>|$)/, (m, a, c, d) => esc(a) + esc(c) + d) : esc(detail)) + "</div>";
+}
+function refresh(flashHead) {
+  const s = evalStatus(machine, sim), cur = readSym(sim), r = pendingRule(machine, sim);
+  renderTape(flashHead);
+  $("badge").textContent = sim.state;
+  $("st").textContent = sim.state;
+  $("sy").textContent = cur === BLANK ? "_ (blank)" : cur;
+  $("cnt").textContent = sim.steps;
+  $("pos").textContent = sim.head;
+  const ts = tapeString(sim);
+  $("tapeline").textContent = ts === "" ? "(empty)" : ts;
+  const rl = $("rule");
+  if (s === "halted") rl.innerHTML = "Next rule: <em>none</em> - the machine is in halting state <em>" + esc(sim.state) + "</em>.";
+  else if (s === "stuck") rl.innerHTML = "Next rule: <em>undefined</em> for (" + esc(sim.state) + ", " + esc(cur) + ") - the machine stops.";
+  else rl.innerHTML = "Next rule: <em>δ(" + esc(r.from) + ", " + esc(r.read) + ")</em> = write <em>" + (r.write === "*" ? "(same)" : esc(r.write)) + "</em>, move <em>" + moveText(r.move) + "</em> " + moveArrow(r.move) + ", go to <em>" + esc(r.to) + "</em>";
+  rowEls.forEach((tr, st) => tr.classList.toggle("cur", st === sim.state));
+  tdEls.forEach(td => td.classList.remove("on", "rowhl"));
+  if (s === "running") {
+    tdEls.forEach((td, k) => { if (k.startsWith(sim.state + "|")) td.classList.add("rowhl"); });
+    const td = tdEls.get(r.from + "|" + r.read); if (td) { td.classList.remove("rowhl"); td.classList.add("on"); }
+  }
+  nodeEls.forEach((g, st) => g.classList.toggle("cur", st === sim.state));
+  edgeEls.forEach(e => { e.g.classList.remove("on"); e.tsp.forEach(t => t.classList.remove("on")); });
+  if (s === "running") {
+    const e = edgeEls.get(r.from + "|" + r.to);
+    if (e) { e.g.classList.add("on"); e.path.setAttribute("marker-end", "url(#ma)"); const t = e.tsp.get(r.from + "|" + r.read); if (t) t.classList.add("on"); }
+  }
+  edgeEls.forEach(e => { if (!e.g.classList.contains("on")) e.path.setAttribute("marker-end", "url(#m)"); });
+  setBanner();
+  const canGo = s === "running" && !limitHit;
+  $("step").disabled = !canGo; $("run").disabled = !canGo && !runFlag; $("back").disabled = sim.history.length === 0;
+}
+
+/* ----- log ----- */
+function logClear() { $("log").innerHTML = '<div class="empty" id="logempty">No steps yet - press Step or Run.</div>'; }
+function logAdd(res) {
+  const lg = $("log"), em = $("logempty"); if (em) em.remove();
+  const d = document.createElement("div");
+  const r = res.rule;
+  d.innerHTML = '<span class="n">#' + sim.steps + "</span>" + esc(r.from) + " reads " + esc(res.sym === BLANK ? "_" : res.sym) + " → write " + esc(res.w === BLANK ? "_" : res.w) + ", move " + moveArrow(r.move) + " " + moveText(r.move) + ", → " + esc(r.to);
+  lg.appendChild(d); lg.scrollTop = lg.scrollHeight;
+}
+function logPop() {
+  const lg = $("log");
+  if (lg.lastElementChild && !lg.lastElementChild.classList.contains("empty")) lg.lastElementChild.remove();
+  if (!lg.children.length) logClear();
+}
+
+/* ----- control ----- */
+function stopRun() {
+  runFlag = false; clearTimeout(tid); tid = null;
+  $("run").innerHTML = "&#9654;&#9654; Run";
+}
+function showErr(m) { $("err").textContent = m; }
+function load() {
+  stopRun();
+  const res = parseMachine($("rules").value);
+  if (!res.ok) { showErr(res.errors.join("\n")); return false; }
+  const m = res.machine;
+  const inp = $("input").value.replace(/\s/g, "");
+  const bad = [...inp].find(c => c !== BLANK && !m.alphabet.includes(c));
+  if (bad !== undefined) { showErr("Symbol \"" + bad + "\" is not used by this machine's rules. Allowed: " + (m.alphabet.join(" ") || "(none)") + "  (and _ for blank)"); return false; }
+  showErr("");
+  const text = $("rules").value;
+  machine = m; initialInput = inp; limitHit = false;
+  sim = makeSim(machine, inp);
+  resetTapeDom(); logClear();
+  if (builtFor !== text) { buildTable(); buildDiagram(); builtFor = text; }
+  refresh();
+  return true;
+}
+function doStep() {
+  if (!machine || limitHit || evalStatus(machine, sim) !== "running") return;
+  const oldHead = sim.head, res = stepSim(machine, sim);
+  if (!res) return;
+  logAdd(res);
+  if (sim.steps >= LIMIT && evalStatus(machine, sim) === "running") limitHit = true;
+  refresh(oldHead);
+}
+function doBack() {
+  stopRun();
+  if (undoSim(sim)) { limitHit = false; logPop(); refresh(); }
+}
+const delay = () => Math.round(1000 * Math.pow(0.72, +$("speed").value - 1));
+function tick() {
+  if (!runFlag) return;
+  doStep();
+  if (evalStatus(machine, sim) !== "running" || limitHit) { stopRun(); refresh(); return; }
+  tid = setTimeout(tick, delay());
+}
+function toggleRun() {
+  if (runFlag) { stopRun(); refresh(); return; }
+  if (evalStatus(machine, sim) !== "running" || limitHit) return;
+  runFlag = true; $("run").innerHTML = "&#10074;&#10074; Pause"; tick();
+}
+function pickPreset() {
+  const k = $("machine").value;
+  if (k === "custom") return;
+  const p = PRESETS[k];
+  $("rules").value = p.rules; $("input").value = p.input; $("desc").textContent = p.desc;
+  load();
+}
+function share() {
+  const k = $("machine").value;
+  const o = { m: k, i: $("input").value };
+  if (k === "custom") o.r = $("rules").value;
+  const url = location.href.split("#")[0] + "#" + encodeURIComponent(JSON.stringify(o));
+  try { history.replaceState(null, "", url); } catch (e) {}
+  const done = () => { $("share").textContent = "Link copied!"; setTimeout(() => $("share").textContent = "Copy share link", 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, () => prompt("Copy this link:", url));
+  else prompt("Copy this link:", url);
+}
+function init() {
+  const sel = $("machine");
+  Object.keys(PRESETS).forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = PRESETS[k].name; sel.appendChild(o); });
+  const c = document.createElement("option"); c.value = "custom"; c.textContent = "Custom (my own rules)"; sel.appendChild(c);
+  let start = { m: "inc", i: null };
+  try { if (location.hash.length > 1) start = Object.assign(start, JSON.parse(decodeURIComponent(location.hash.slice(1)))); } catch (e) {}
+  if (!PRESETS[start.m] && start.m !== "custom") start.m = "inc";
+  sel.value = start.m;
+  if (start.m === "custom") {
+    $("rules").value = start.r || PRESETS.inc.rules; $("input").value = start.i || "";
+    $("desc").textContent = "Your own machine. Edit the rules below and press \"Apply rules & reset\".";
+  } else {
+    const p = PRESETS[start.m];
+    $("rules").value = p.rules; $("input").value = start.i !== null && start.i !== undefined ? start.i : p.input; $("desc").textContent = p.desc;
+  }
+  sel.addEventListener("change", pickPreset);
+  $("rules").addEventListener("input", () => { sel.value = "custom"; $("desc").textContent = "Your own machine. Edit the rules and press \"Apply rules & reset\"."; });
+  $("apply").addEventListener("click", load);
+  $("load").addEventListener("click", load);
+  $("reset").addEventListener("click", load);
+  $("step").addEventListener("click", () => { stopRun(); doStep(); });
+  $("back").addEventListener("click", doBack);
+  $("run").addEventListener("click", toggleRun);
+  $("share").addEventListener("click", share);
+  $("input").addEventListener("keydown", e => { if (e.key === "Enter") load(); });
+  document.addEventListener("keydown", e => {
+    const tag = (e.target.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select" || e.ctrlKey || e.metaKey) return;
+    if (e.key === " ") { e.preventDefault(); toggleRun(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); stopRun(); doStep(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); doBack(); }
+    else if (e.key === "r" || e.key === "R") load();
+  });
+  load();
+}
+init();
+</script>
+</body>
+</html>
